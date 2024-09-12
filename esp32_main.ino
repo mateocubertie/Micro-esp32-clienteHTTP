@@ -92,10 +92,9 @@ void printWebHTML(NetworkClient client) {
     .resaltado{ color:rgb(0, 230, 0);} \
     </style></head><body><section class=\"cfgPrincipal\"> \
     <h1>Configuracion | Enlace inalámbrico</h1> \
-    <h2>IP Actual: <span class=\"resaltado\"> \
-    <h3>"); 
+    <h2>IP Actual: <span class=\"resaltado\"> "); 
   client.print(espIP);
-  client.print("</span></h2></h3></section></body></html>");
+  client.print("</span></h2></section></body></html>");
     // client.print("</h3>");
     // client.print("</section></body></html>");
 }
