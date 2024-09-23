@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -6,12 +7,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Configuracion | Enlace Inalambrico</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap');
 
         html {
-            background-color: rgb(18, 18, 18);
+            background-color: rgb(5, 5, 5);
             color: white;
-            font-family: "Roboto", sans-serif;
         }
 
         .cfgPrincipal {
@@ -21,7 +20,51 @@
         }
 
         .resaltado {
-            color: rgb(0, 230, 0)
+            color: rgb(0, 255, 0);
+        }
+
+        .connectBtn {
+            color: white;
+            margin-top: 20px;
+            border: 1px;
+            border-color: white;
+            background-color: rgb(0, 255, 0);
+            padding: 4px 8px 4px 8px;
+            transition-duration: 0.5s;
+            text-shadow: rgba(0, 0, 0, 0.31) 2px 2px;
+        }
+
+        .connectBtn:hover {
+            cursor: pointer
+        }
+
+        .locked {
+            background-color: grey;
+            border-color: grey;
+            transition-duration: 0.5s;
+        }
+
+        .locked:hover {
+            cursor: not-allowed;
+        }
+
+        .inputField {
+            margin: 10px 0 10px 0;
+            width: 700px;
+            display: flex;
+            justify-content: space-between;
+            height: 40px;
+        }
+
+        .inputField input {
+            width: 200px;
+        }
+
+        .inputField select {
+            width: 200px;
+        }
+        .error {
+            color: red;
         }
     </style>
 </head>
@@ -29,9 +72,97 @@
 <body>
     <section class="cfgPrincipal">
         <h1>Configuracion | Enlace inalámbrico</h1>
-        <h2>IP Actual: <span class="resaltado"></span></h2>
-        <h3>(meter variable ip)</h3>
+        <h2>IP Actual: <span class="resaltado ipAddress">pegar_ip_aca</span></h2>
+        <div class="inputField">
+            <h2>SSID a conectar:</h2>
+            <input type="text" class="connectSSID">
+        </div>
+        <div class="inputField">
+            <h2>Contraseña:</h2>
+            <input type="password" class="connectPass">
+        </div>
+        <div class="inputField">
+            <h2>Pin de lectura:</h2>
+            <select class="inputPin">
+                <option value="gpio0">Pin 0</option>
+                <option value="gpio2">Pin 2</option>
+                <option value="gpio4">Pin 4</option>
+                <option value="comm">Comunicacion</option>
+            </select>
+        </div>
+        <div class="inputField">
+            <h2>Tipo de variable:</h2>
+            <select class="inputType">
+                <option value="digital">Discreta</option>
+                <option value="analog">Analogica</option>
+            </select>
+        </div>
+        <div class="inputField"><button class="connectBtn locked" style="justify-self: center;">Conectar</button></div>
+        <h2 class="connectStatus"></h2>
     </section>
+    <script>
+        let connectFlag = false;
+        let ipAddress = document.querySelector('.ipAddress').textContent;
+        let inputsArray = document.getElementsByTagName('input');
+        let emptyInputLock = true;
+        let analogCommLock = false;
+        for (let input of inputsArray) {
+            input.empty = true;
+            input.addEventListener('input', (e) => {
+                if (e.target.value != '') {
+                    e.target.empty = false;
+                    emptyInputLock = false;
+                    for (let input of inputsArray) {
+                        if (input.empty) {
+                            emptyInputLock = true;
+                        }
+                    }
+                }
+                else {
+                    e.target.empty = true;
+                    emptyInputLock = true;
+                }
+                if (emptyInputLock || analogCommLock) { document.querySelector('.connectBtn').classList.add('locked');
+                }
+                else {
+                    document.querySelector('.connectBtn').classList.remove('locked');
+                }
+            })
+        }
+        let selectArray = document.getElementsByTagName('select');
+        for (let select of selectArray) {
+            select.addEventListener('change', () => {
+                if (document.querySelector('.inputType').value == 'analog' && document.querySelector('.inputPin').value == 'comm') {
+                    analogCommLock = true;
+                }
+                else {
+                    analogCommLock = false;
+                }
+                if (emptyInputLock || analogCommLock) {
+                    document.querySelector('.connectBtn').classList.add('locked');
+                }
+                else {
+                    document.querySelector('.connectBtn').classList.remove('locked');
+                }
+            })
+        }
+        document.querySelector('.connectBtn').addEventListener("click", (e) => {
+            e.preventDefault();
+            if (!document.querySelector('.connectBtn').classList.contains('locked')) {
+                let ssid = document.querySelector('.connectSSID').value;
+                let password = document.querySelector('.connectPass').value;
+                let pin = document.querySelector('.inputPin').value;
+                let type = document.querySelector('.inputType').value;
+                let httpUrl = `http://${ipAddress}/connect?ssid=${ssid}&password=${password}&pin=${pin}&type=${type}`;
+                fetch(httpUrl)
+                .then(() => {
+                    document.querySelector('.connectStatus').innerHTML = '<span class="resaltado">Conexión iniciada</span>';
+                })
+                .catch(()=>{
+                    document.querySelector('.connectStatus').innerHTML = '<span class="error">Fallo al conectar con el ESP32</span>';
+                })
+            }
+        })
+    </script>
 </body>
-
 </html>
