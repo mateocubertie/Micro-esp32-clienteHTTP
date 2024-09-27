@@ -1,4 +1,4 @@
-
+<!-- Al aplicar Join Lines no tendria que haber ningun error de JS -->
 <!DOCTYPE html>
 <html lang="en">
 
@@ -7,7 +7,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Configuracion | Enlace Inalambrico</title>
     <style>
-
         html {
             background-color: rgb(5, 5, 5);
             color: white;
@@ -23,19 +22,26 @@
             color: rgb(0, 255, 0);
         }
 
-        .connectBtn {
+        .btn {
             color: white;
             margin-top: 20px;
             border: 1px;
             border-color: white;
-            background-color: rgb(0, 255, 0);
             padding: 4px 8px 4px 8px;
             transition-duration: 0.5s;
             text-shadow: rgba(0, 0, 0, 0.31) 2px 2px;
         }
 
-        .connectBtn:hover {
-            cursor: pointer
+        .btn:hover {
+            cursor: pointer;
+        }
+
+        .connectBtn {
+            background-color: rgb(0, 255, 0);
+        }
+
+        .disconnectBtn {
+            background-color: red;
         }
 
         .locked {
@@ -63,6 +69,7 @@
         .inputField select {
             width: 200px;
         }
+
         .error {
             color: red;
         }
@@ -97,7 +104,7 @@
                 <option value="analog">Analogica</option>
             </select>
         </div>
-        <div class="inputField"><button class="connectBtn locked" style="justify-self: center;">Conectar</button></div>
+        <div class="inputField buttons"><button class="btn connectBtn locked">Conectar</button></div>
         <h2 class="connectStatus"></h2>
     </section>
     <script>
@@ -106,6 +113,27 @@
         let inputsArray = document.getElementsByTagName('input');
         let emptyInputLock = true;
         let analogCommLock = false;
+        let mode = "";
+        fetch(`http://${ipAddress}/mode`)
+            .then((response) => {
+                console.log(response);
+                return response.json();
+            })
+            .then((obj) => {
+                mode = obj.mode;
+                if (mode == "1") {
+                    let disconnectBtn = document.createElement('button');
+                    disconnectBtn.classList.add('btn');
+                    disconnectBtn.classList.add('disconnectBtn');
+                    disconnectBtn.textContent = "Desconectar";
+                    document.querySelector('.buttons').appendChild(disconnectBtn);
+                    disconnectBtn.addEventListener("click", (e) => {
+                        e.preventDefault();
+                        fetch(`http://${ipAddress}/disconnect`);
+                    });
+                }
+
+            });
         for (let input of inputsArray) {
             input.empty = true;
             input.addEventListener('input', (e) => {
@@ -122,7 +150,8 @@
                     e.target.empty = true;
                     emptyInputLock = true;
                 }
-                if (emptyInputLock || analogCommLock) { document.querySelector('.connectBtn').classList.add('locked');
+                if (emptyInputLock || analogCommLock) {
+                    document.querySelector('.connectBtn').classList.add('locked');
                 }
                 else {
                     document.querySelector('.connectBtn').classList.remove('locked');
@@ -144,7 +173,7 @@
                 else {
                     document.querySelector('.connectBtn').classList.remove('locked');
                 }
-            })
+            });
         }
         document.querySelector('.connectBtn').addEventListener("click", (e) => {
             e.preventDefault();
@@ -155,14 +184,16 @@
                 let type = document.querySelector('.inputType').value;
                 let httpUrl = `http://${ipAddress}/connect?ssid=${ssid}&password=${password}&pin=${pin}&type=${type}`;
                 fetch(httpUrl)
-                .then(() => {
-                    document.querySelector('.connectStatus').innerHTML = '<span class="resaltado">Conexión iniciada</span>';
-                })
-                .catch(()=>{
-                    document.querySelector('.connectStatus').innerHTML = '<span class="error">Fallo al conectar con el ESP32</span>';
-                })
+                    .then(() => {
+                        document.querySelector('.connectStatus').innerHTML = '<span class="resaltado">Conexión iniciada</span>';
+                    })
+                    .catch(() => {
+                        document.querySelector('.connectStatus').innerHTML = '<span class="error">Fallo al conectar con el ESP32</span>';
+                    })
             }
-        })
+        });
+
     </script>
 </body>
+
 </html>
