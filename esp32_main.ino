@@ -3,14 +3,36 @@
 #include <NetworkClient.h>
 #include <WiFiAP.h>
 
-
-const char *ssid = "esp32ap";
-const char *password = "microesp32";
 #define MODO_AP false
 #define MODO_STA true
 bool WifiMode{};
+
+#define DIGITAL_VAR false
+#define ANALOG_VAR true
+bool dataType{};
+
+String serverIP = "";
+String port = "";
+String dataName = "";
+int8_t dataPin{};
+
+
+const char *ssid = "esp32ap";
+const char *password = "microesp32";
+
+class JSON {
+public:
+  String key = {};
+  String value = {};
+  String stringify() {
+    return String("{\"" + key + "\": \"" + value + "\"}");
+  }
+};
+
 IPAddress espIP;
 NetworkServer server(80);
+HTTPClient http;
+
 void setup() {
   Serial.begin(115200);
   setupAPMode();
@@ -28,11 +50,11 @@ void loop() {
     bool disconnectFlag = false;
     bool modeFlag = false;
     bool parameterReading = false;
+    bool sendingData = false;
     String connectParams = "?";
     String targetSSID = "";
     String targetPass = "";
-    int dataPin{};
-    String dataType = "";
+
     while (client.connected()) {  // loop while the client's connected
       if (client.available()) {   // if there's bytes to read from the client,
         char c = client.read();   // read a byte, then
@@ -92,21 +114,51 @@ void loop() {
     }
     if (connectFlag) {
       if (connectFlag) {
-        targetSSID = connectParamsParse(connectParams, "ssid");
-        targetPass = connectParamsParse(connectParams, "password");
-        dataPin = connectParamsParse(connectParams, "pin").toInt();
-        dataType = connectParamsParse(connectParams, "type");
-        setupStationMode(targetSSID, targetPass, dataPin, dataType);
+        targetSSID = queryParse(connectParams, "ssid");
+        targetPass = queryParse(connectParams, "password");
+        serverIP = queryParse(connectParams, "server");
+        port = queryParse(connectParams, "port");
+        dataName = queryParse(connectParams, "name");
+        dataPin = queryParse(connectParams, "pin").toInt();
+        dataType = setupDataPin(dataPin, queryParse(connectParams, "type"));
+        setupStationMode(targetSSID, targetPass);
         connectParams = "?";
         connectFlag = false;
       }
     }
+
     // close the connection:
     client.stop();
     Serial.println("Cliente desconectado");
     Serial.println();
   }
+
+  // Si esta en modo station (es decir, conectado a una SSID y con un servidor de destino)
+  // manda la lectura con una peticion post
+  if (WifiMode == MODO_STA) {
+    Serial.println("mandando data!");
+    Serial.println(String("http://" + serverIP + ":" + port + "/update"));
+    http.begin(String("http://" + serverIP + ":" + port + "/update"));
+    http.addHeader("Content-Type", "application/json");
+    JSON lectura{};
+    lectura.key = dataName;
+    if (dataType == ANALOG_VAR) {
+      lectura.value = String(analogRead(dataPin), DEC);
+      Serial.println(analogRead(dataPin));
+    } else {
+      if (digitalRead(dataPin)) {
+        lectura.value = String("true");
+      } else {
+        lectura.value = String("false");
+      }
+    }
+    Serial.println(lectura.stringify());
+    http.POST(lectura.stringify());
+    delay(200);
+  }
 }
+
+
 
 // Funcion que manda al cliente las lineas del HTML de la web
 // (escribir el codigo en VSC, hacer Join Lines y pasarlo, pero hay que generar otro print donde haya variables del ESP32)
@@ -114,15 +166,15 @@ void loop() {
 void printCfgHTML(NetworkClient client) {
   client.print("<!DOCTYPE html> <html lang=\"en\"> <head> <meta charset=\"UTF-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"> <title>Configuracion | Enlace Inalambrico</title> <style> html { background-color: rgb(5, 5, 5); color: white; } .cfgPrincipal { display: flex; flex-direction: column; align-items: center; } .resaltado { color: rgb(0, 255, 0); } .btn { color: white; margin-top: 20px; border: 1px; border-color: white; padding: 4px 8px 4px 8px; transition-duration: 0.5s; text-shadow: rgba(0, 0, 0, 0.31) 2px 2px; } .btn:hover { cursor: pointer; } .connectBtn { background-color: rgb(0, 255, 0); } .disconnectBtn { background-color: red; } .locked { background-color: grey; border-color: grey; transition-duration: 0.5s; } .locked:hover { cursor: not-allowed; } .inputField { margin: 10px 0 10px 0; width: 700px; display: flex; justify-content: space-between; height: 40px; } .inputField input { width: 200px; } .inputField select { width: 200px; } .error { color: red; } </style> </head> <body> <section class=\"cfgPrincipal\"> <h1>Configuracion | Enlace inalámbrico</h1> <h2>IP Actual: <span class=\"resaltado ipAddress\">");
   client.print(espIP);
-  client.print("</span></h2> <div class=\"inputField\"> <h2>SSID a conectar:</h2> <input type=\"text\" class=\"connectSSID\"> </div> <div class=\"inputField\"> <h2>Contraseña:</h2> <input type=\"password\" class=\"connectPass\"> </div> <div class=\"inputField\"> <h2>Pin de lectura:</h2> <select class=\"inputPin\"> <option value=\"gpio0\">Pin 0</option> <option value=\"gpio2\">Pin 2</option> <option value=\"gpio4\">Pin 4</option> <option value=\"comm\">Comunicacion</option> </select> </div> <div class=\"inputField\"> <h2>Tipo de variable:</h2> <select class=\"inputType\"> <option value=\"digital\">Discreta</option> <option value=\"analog\">Analogica</option> </select> </div> <div class=\"inputField buttons\"><button class=\"btn connectBtn locked\">Conectar</button></div> <h2 class=\"connectStatus\"></h2> </section> <script> let connectFlag = false; let ipAddress = document.querySelector('.ipAddress').textContent; let inputsArray = document.getElementsByTagName('input'); let emptyInputLock = true; let analogCommLock = false; let mode = \"\"; fetch(`http://${ipAddress}/mode`) .then((response) => { console.log(response); return response.json(); }) .then((obj) => { mode = obj.mode; if (mode == \"1\") { let disconnectBtn = document.createElement('button'); disconnectBtn.classList.add('btn'); disconnectBtn.classList.add('disconnectBtn'); disconnectBtn.textContent = \"Desconectar\"; document.querySelector('.buttons').appendChild(disconnectBtn); disconnectBtn.addEventListener(\"click\", (e) => { e.preventDefault(); fetch(`http://${ipAddress}/disconnect`); }); } }); for (let input of inputsArray) { input.empty = true; input.addEventListener('input', (e) => { if (e.target.value != '') { e.target.empty = false; emptyInputLock = false; for (let input of inputsArray) { if (input.empty) { emptyInputLock = true; } } } else { e.target.empty = true; emptyInputLock = true; } if (emptyInputLock || analogCommLock) { document.querySelector('.connectBtn').classList.add('locked'); } else { document.querySelector('.connectBtn').classList.remove('locked'); } }) } let selectArray = document.getElementsByTagName('select'); for (let select of selectArray) { select.addEventListener('change', () => { if (document.querySelector('.inputType').value == 'analog' && document.querySelector('.inputPin').value == 'comm') { analogCommLock = true; } else { analogCommLock = false; } if (emptyInputLock || analogCommLock) { document.querySelector('.connectBtn').classList.add('locked'); } else { document.querySelector('.connectBtn').classList.remove('locked'); } }); } document.querySelector('.connectBtn').addEventListener(\"click\", (e) => { e.preventDefault(); if (!document.querySelector('.connectBtn').classList.contains('locked')) { let ssid = document.querySelector('.connectSSID').value; let password = document.querySelector('.connectPass').value; let pin = document.querySelector('.inputPin').value; let type = document.querySelector('.inputType').value; let httpUrl = `http://${ipAddress}/connect?ssid=${ssid}&password=${password}&pin=${pin}&type=${type}`; fetch(httpUrl) .then(() => { document.querySelector('.connectStatus').innerHTML = '<span class=\"resaltado\">Conexión iniciada</span>'; }) .catch(() => { document.querySelector('.connectStatus').innerHTML = '<span class=\"error\">Fallo al conectar con el ESP32</span>'; }) } }); </script> </body> </html>");
+  client.print("</span></h2> <div class=\"inputField\"> <h2>SSID a conectar:</h2> <input type=\"text\" class=\"connectSSID\"> </div> <div class=\"inputField\"> <h2>Contraseña:</h2> <input type=\"password\" class=\"connectPass\"> </div> <div class=\"inputField\"> <h2>Servidor de destino:</h2> <input type=\"text\" class=\"connectServer\"> </div> <div class=\"inputField\"> <h2>Puerto:</h2> <input type=\"text\" class=\"connectPort\"> </div> <div class=\"inputField\"> <h2>Nombre de la variable:</h2> <input type=\"text\" class=\"inputName\"> </div> <div class=\"inputField\"> <h2>Pin de lectura:</h2> <select class=\"inputPin\"> <option value=\"32\">Pin 32</option> <option value=\"34\">Pin 34</option> <option value=\"36\">Pin 36</option> <option value=\"comm\">Comunicacion</option> </select> </div> <div class=\"inputField\"> <h2>Tipo de variable:</h2> <select class=\"inputType\"> <option value=\"digital\">Discreta</option> <option value=\"analog\">Analogica</option> </select> </div> <div class=\"inputField buttons\"><button class=\"btn connectBtn locked\">Conectar</button></div> <h2 class=\"connectStatus\"></h2> </section> <script> let connectFlag = false; let ipAddress = document.querySelector('.ipAddress').textContent; let inputsArray = document.getElementsByTagName('input'); let emptyInputLock = true; let analogCommLock = false; let mode = \"\"; fetch(`http://${ipAddress}/mode`) .then((response) => { console.log(response); return response.json(); }) .then((obj) => { mode = obj.mode; if (mode == \"1\") { let disconnectBtn = document.createElement('button'); disconnectBtn.classList.add('btn'); disconnectBtn.classList.add('disconnectBtn'); disconnectBtn.textContent = \"Desconectar\"; document.querySelector('.buttons').appendChild(disconnectBtn); disconnectBtn.addEventListener(\"click\", (e) => { e.preventDefault(); fetch(`http://${ipAddress}/disconnect`); }); } }); for (let input of inputsArray) { input.empty = true; input.addEventListener('input', (e) => { if (e.target.value != '') { e.target.empty = false; emptyInputLock = false; for (let input of inputsArray) { if (input.empty) { emptyInputLock = true; } } } else { e.target.empty = true; emptyInputLock = true; } if (emptyInputLock || analogCommLock) { document.querySelector('.connectBtn').classList.add('locked'); } else { document.querySelector('.connectBtn').classList.remove('locked'); } }) } let selectArray = document.getElementsByTagName('select'); for (let select of selectArray) { select.addEventListener('change', () => { if (document.querySelector('.inputType').value == 'analog' && document.querySelector('.inputPin').value == 'comm') { analogCommLock = true; } else { analogCommLock = false; } if (emptyInputLock || analogCommLock) { document.querySelector('.connectBtn').classList.add('locked'); } else { document.querySelector('.connectBtn').classList.remove('locked'); } }); } document.querySelector('.connectBtn').addEventListener(\"click\", (e) => { e.preventDefault(); if (!document.querySelector('.connectBtn').classList.contains('locked')) { let ssid = document.querySelector('.connectSSID').value; let password = document.querySelector('.connectPass').value; let server = document.querySelector('.connectServer').value; let port = document.querySelector('.connectPort').value; let name = document.querySelector('.inputName').value; let pin = document.querySelector('.inputPin').value; let type = document.querySelector('.inputType').value; let httpUrl = `http://${ipAddress}/connect?ssid=${ssid}&password=${password}&server=${server}&port=${port}&name=${name}&pin=${pin}&type=${type}`; fetch(httpUrl) .then(() => { document.querySelector('.connectStatus').innerHTML = '<span class=\"resaltado\">Conexión iniciada</span>'; }) .catch(() => { document.querySelector('.connectStatus').innerHTML = '<span class=\"error\">Fallo al conectar con el ESP32</span>'; }) } }); </script> </body> </html>");
 }
 
-String connectParamsParse(String parameterString, String targetParameter) {
+String queryParse(String queryString, String targetParameter) {
   String readString = "";
   bool read = false;
   bool readValue = false;
-  for (int i = 0; i < parameterString.length(); i++) {
-    char c = parameterString.charAt(i);
+  for (int i = 0; i < queryString.length(); i++) {
+    char c = queryString.charAt(i);
     if (read && c != '&' && c != '=') {
       readString += c;
     }
@@ -162,8 +214,7 @@ void setupAPMode() {
   Serial.println(ssid);
 }
 
-void setupStationMode(String SSID, String password, int inputPin, String inputType) {
-  pinMode(inputPin, INPUT);
+void setupStationMode(String SSID, String password) {
   WiFi.softAPdisconnect();
   WiFi.mode(WIFI_STA);
   WiFi.begin(SSID, password);
@@ -188,5 +239,16 @@ void setupStationMode(String SSID, String password, int inputPin, String inputTy
     Serial.println(espIP);
     Serial.print("SSID de la red: ");
     Serial.println(WiFi.SSID());
+  }
+}
+
+
+
+bool setupDataPin(int8_t pin, String varType) {
+  pinMode(pin, INPUT);
+  if (varType == "analog") {
+    return ANALOG_VAR;
+  } else {
+    return DIGITAL_VAR;
   }
 }

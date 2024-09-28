@@ -89,11 +89,23 @@
             <input type="password" class="connectPass">
         </div>
         <div class="inputField">
+            <h2>Servidor de destino:</h2>
+            <input type="text" class="connectServer">
+        </div>
+        <div class="inputField">
+            <h2>Puerto:</h2>
+            <input type="text" class="connectPort">
+        </div>
+        <div class="inputField">
+            <h2>Nombre de la variable:</h2>
+            <input type="text" class="inputName">
+        </div>
+        <div class="inputField">
             <h2>Pin de lectura:</h2>
             <select class="inputPin">
-                <option value="gpio0">Pin 0</option>
-                <option value="gpio2">Pin 2</option>
-                <option value="gpio4">Pin 4</option>
+                <option value="32">Pin 32</option>
+                <option value="34">Pin 34</option>
+                <option value="36">Pin 36</option>
                 <option value="comm">Comunicacion</option>
             </select>
         </div>
@@ -180,9 +192,12 @@
             if (!document.querySelector('.connectBtn').classList.contains('locked')) {
                 let ssid = document.querySelector('.connectSSID').value;
                 let password = document.querySelector('.connectPass').value;
+                let server = document.querySelector('.connectServer').value;
+                let port = document.querySelector('.connectPort').value;
+                let name = document.querySelector('.inputName').value;
                 let pin = document.querySelector('.inputPin').value;
                 let type = document.querySelector('.inputType').value;
-                let httpUrl = `http://${ipAddress}/connect?ssid=${ssid}&password=${password}&pin=${pin}&type=${type}`;
+                let httpUrl = `http://${ipAddress}/connect?ssid=${ssid}&password=${password}&server=${server}&port=${port}&name=${name}&pin=${pin}&type=${type}`;
                 fetch(httpUrl)
                     .then(() => {
                         document.querySelector('.connectStatus').innerHTML = '<span class="resaltado">Conexión iniciada</span>';
