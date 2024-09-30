@@ -2,7 +2,14 @@
 #include <HTTPClient.h>
 #include <NetworkClient.h>
 #include <WiFiAP.h>
+#include <HardwareSerial.h>
 
+HardwareSerial MySerial(0);
+
+#define RxPin 3
+#define TxPin 1
+#define BAUDRATE 9600
+#define SER_BUF_SIZE 1024
 #define MODO_AP false
 #define MODO_STA true
 bool WifiMode{};
@@ -11,10 +18,13 @@ bool WifiMode{};
 #define ANALOG_VAR true
 bool dataType{};
 
+bool UARTMode = false;
+
 String serverIP = "";
 String port = "";
 String dataName = "";
 int8_t dataPin{};
+String pinString = "";
 
 
 const char *ssid = "esp32ap";
@@ -34,7 +44,9 @@ NetworkServer server(80);
 HTTPClient http;
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(9600);
+  MySerial.setRxBufferSize(SER_BUF_SIZE);
+  MySerial.begin(BAUDRATE, SERIAL_8N1, RxPin, TxPin);
   setupAPMode();
   server.begin();
   Serial.println("Servidor iniciado");
@@ -119,8 +131,8 @@ void loop() {
         serverIP = queryParse(connectParams, "server");
         port = queryParse(connectParams, "port");
         dataName = queryParse(connectParams, "name");
-        dataPin = queryParse(connectParams, "pin").toInt();
-        dataType = setupDataPin(dataPin, queryParse(connectParams, "type"));
+        pinString = queryParse(connectParams, "pin");
+        dataType = setupDataPin(pinString, queryParse(connectParams, "type"));
         setupStationMode(targetSSID, targetPass);
         connectParams = "?";
         connectFlag = false;
@@ -142,7 +154,25 @@ void loop() {
     http.addHeader("Content-Type", "application/json");
     JSON lectura{};
     lectura.key = dataName;
-    if (dataType == ANALOG_VAR) {
+    if (UARTMode) {
+      String readString = "";
+      bool readFlag = false;
+      while (MySerial.available()) {
+        char readByte = MySerial.read();
+        if (readByte == '}' && readFlag) {
+            readFlag = false;
+            break;
+        }
+        if (readFlag) {
+            readString = String(readString + readByte);
+        }
+        if (readByte == '{') {
+            readFlag = true;
+        }
+      }
+      lectura.value = String(readString);
+      Serial.println(readString);
+    } else if (dataType == ANALOG_VAR) {
       lectura.value = String(analogRead(dataPin), DEC);
       Serial.println(analogRead(dataPin));
     } else {
@@ -154,8 +184,8 @@ void loop() {
     }
     Serial.println(lectura.stringify());
     http.POST(lectura.stringify());
-    delay(200);
   }
+  delay(1000);
 }
 
 
@@ -244,11 +274,19 @@ void setupStationMode(String SSID, String password) {
 
 
 
-bool setupDataPin(int8_t pin, String varType) {
-  pinMode(pin, INPUT);
-  if (varType == "analog") {
-    return ANALOG_VAR;
-  } else {
+bool setupDataPin(String pin, String varType) {
+  if (pin == "comm") {
+    UARTMode = true;
+    Serial.println("Conectado POR COMUNICACION UART");
     return DIGITAL_VAR;
+  } else {
+    UARTMode = false;
+    dataPin = pin.toInt();
+    pinMode(dataPin, INPUT);
+    if (varType == "analog") {
+      return ANALOG_VAR;
+    } else {
+      return DIGITAL_VAR;
+    }
   }
 }
