@@ -164,13 +164,13 @@ void loop() {
             break;
         }
         if (readFlag) {
-            readString = String(readString + readByte);
+            readString = readString + readByte;
         }
         if (readByte == '{') {
             readFlag = true;
         }
       }
-      lectura.value = String(readString);
+      lectura.value = readString;
       Serial.println(readString);
     } else if (dataType == ANALOG_VAR) {
       lectura.value = String(analogRead(dataPin), DEC);
