@@ -216,7 +216,12 @@
         });
         let inputsArray = document.getElementsByTagName('input');
         for (let input of inputsArray) {
-            input.empty = true;
+            if(input.classList.contains('bypass')) {
+                input.empty = false;
+            }
+            else {
+                input.empty = true;
+            }
             input.addEventListener('input', (e) => {
                 if (e.target.value != '') {
                     e.target.empty = false;
@@ -270,12 +275,13 @@
                 let httpUrl = `http://${ipAddress}/connect?ssid=${ssid}&password=${password}&ipmode=${modeSelect}&staticIP=${staticIP}&server=${server}&port=${port}&pin=${pin}&type=${type}`;
                 if (pin == "comm") {
                     let dataLength = document.querySelector('.dataLength').value;
+                    httpUrl += `&length=${dataLength}`;
                     for (let i = 1; i <= dataLength; i++) {
                         httpUrl += `&dataName${i}=${document.querySelector(`.dataName${i}`).value}`;
                     }
                 }
                 else {
-                    httpUrl += `&dataName1=${document.querySelector('.dataName1').value}`;
+                    httpUrl += `&length=1&dataName1=${document.querySelector('.dataName1').value}`;
                 }
                 console.log(httpUrl);
                 fetch(httpUrl)
