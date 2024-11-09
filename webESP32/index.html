@@ -127,37 +127,40 @@
                 <option value="8">8</option>
             </select>
         </div>
-        <div class="inputField multivariable">
+        <div class="inputField multivariable bypass">
             <h2>Nombre de la variable 1:</h2> <input type="text" class="dataName1">
         </div>
-        <div class="inputField multivariable">
+        <div class="inputField multivariable bypass">
             <h2>Nombre de la variable 2:</h2> <input type="text" class="dataName2">
         </div>
-        <div class="inputField multivariable">
+        <div class="inputField multivariable bypass">
             <h2>Nombre de la variable 3:</h2> <input type="text" class="dataName3">
         </div>
-        <div class="inputField multivariable">
+        <div class="inputField multivariable bypass">
             <h2>Nombre de la variable 4:</h2> <input type="text" class="dataName4">
         </div>
-        <div class="inputField multivariable">
+        <div class="inputField multivariable bypass">
             <h2>Nombre de la variable 5:</h2> <input type="text" class="dataName5">
         </div>
-        <div class="inputField multivariable">
+        <div class="inputField multivariable bypass">
             <h2>Nombre de la variable 6:</h2> <input type="text" class="dataName6">
         </div>
-        <div class="inputField multivariable">
+        <div class="inputField multivariable bypass">
             <h2>Nombre de la variable 7:</h2> <input type="text" class="dataName7">
         </div>
-        <div class="inputField multivariable">
+        <div class="inputField multivariable bypass">
             <h2>Nombre de la variable 8:</h2> <input type="text" class="dataName8">
         </div>
-        <div class="inputField monovariable">
+        <div class="inputField monovariable bypass">
             <h2>Nombre de la variable 1:</h2> <input type="text" class="dataName1">
         </div>
         <div class="inputField buttons"><button class="btn connectBtn locked">Conectar</button></div>
         <h2 class="connectStatus"></h2>
     </section>
     <script>
+        function checkEmptyInputs() {
+
+        }
         let connectFlag = false;
         let ipAddress = document.querySelector('.ipAddress').textContent;
         let emptyInputLock = true;
@@ -203,6 +206,19 @@
                     for (let campo of camposMultivariable) {
                         document.querySelector('.cfgPrincipal').insertBefore(campo, document.querySelector('.buttons'));
                     }
+                    document.querySelector(".dataName1").empty = false;
+                    emptyInputLock = false;
+                    for (let input of inputsArray) {
+                        if (input.empty && !input.classList.contains('bypass')) {
+                            emptyInputLock = true;
+                        }
+                    }
+                    if (emptyInputLock || analogCommLock) {
+                        document.querySelector('.connectBtn').classList.add('locked');
+                    }
+                    else {
+                        document.querySelector('.connectBtn').classList.remove('locked');
+                    }
                     monovariable.remove();
                 }
             }
@@ -216,7 +232,7 @@
         });
         let inputsArray = document.getElementsByTagName('input');
         for (let input of inputsArray) {
-            if(input.classList.contains('bypass')) {
+            if (input.classList.contains('bypass')) {
                 input.empty = false;
             }
             else {
@@ -295,4 +311,5 @@
         }); 
     </script>
 </body>
+
 </html>
