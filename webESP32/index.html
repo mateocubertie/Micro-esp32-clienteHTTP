@@ -110,6 +110,9 @@
             </select>
         </div>
         <div class="inputField">
+            <h2>Intervalo entre lecturas:</h2> <input type="text" class="delay">
+        </div>
+        <div class="inputField">
             <h2>Tipo de variable:</h2> <select class="inputType">
                 <option value="digital">Discreta</option>
                 <option value="analog">Analogica</option>
@@ -288,7 +291,8 @@
                 let port = document.querySelector('.connectPort').value;
                 let pin = document.querySelector('.inputPin').value;
                 let type = document.querySelector('.inputType').value;
-                let httpUrl = `http://${ipAddress}/connect?ssid=${ssid}&password=${password}&ipmode=${modeSelect}&staticIP=${staticIP}&server=${server}&port=${port}&pin=${pin}&type=${type}`;
+                let delay = document.querySelector('.delay').value;
+                let httpUrl = `http://${ipAddress}/connect?ssid=${ssid}&password=${password}&ipmode=${modeSelect}&staticIP=${staticIP}&server=${server}&port=${port}&pin=${pin}&type=${type}&delay=${delay}`;
                 if (pin == "comm") {
                     let dataLength = document.querySelector('.dataLength').value;
                     httpUrl += `&length=${dataLength}`;
